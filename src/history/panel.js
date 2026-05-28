@@ -7,7 +7,7 @@
   'use strict';
 
   const h = React.createElement;
-  const { useState, useMemo } = React;
+  const { useState, useMemo, useEffect } = React;
   const { createRoot } = ReactDOM;
 
   const CATEGORIES = [
@@ -73,19 +73,42 @@
 
   function PanelApp() {
     const [videos, setVideos] = useState([]);
+    const [noteVideos, setNoteVideos] = useState([]);
     const [expandedKeys, setExpandedKeys] = useState(new Set(['thisMonth']));
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(true);
     const [viewMode, setViewMode] = useState('list'); // 'list' | 'tab'
     const [activeTab, setActiveTab] = useState('thisMonth');
+    const [panelMode, setPanelMode] = useState('time'); // 'time' | 'note'
+    const [noteSort, setNoteSort] = useState('desc'); // 'desc' | 'asc'
 
     // 暴露 setter 给外部
     appRef.setVideos = setVideos;
     appRef.reset = () => {
       setVideos([]);
+      setNoteVideos([]);
       setExpandedKeys(new Set(['thisMonth']));
       setActiveTab('thisMonth');
       setViewMode('list');
+      setPanelMode('time');
+      setNoteSort('desc');
     };
+
+    useEffect(() => {
+      if (panelMode === 'note') {
+        window.BiliAuxDB.getVideosWithNote().then(list => {
+          // 兜底补全：标题缺失用 bvid，链接缺失构造默认链接
+          const enriched = list.map(v => ({
+            ...v,
+            title: v.title || v.bvid,
+            cover: v.cover || '',
+            url: v.url || `https://www.bilibili.com/video/${v.bvid}`
+          }));
+          setNoteVideos(enriched);
+        }).catch(err => {
+          console.error('[BiliAux] load notes failed', err);
+        });
+      }
+    }, [panelMode]);
 
     // 分组结果两个视图共用
     const groups = useMemo(() => {
@@ -114,6 +137,16 @@
 
     const activeVideos = groups[activeTab] || [];
 
+    const sortedNoteVideos = useMemo(() => {
+      const sorted = [...noteVideos];
+      sorted.sort((a, b) => {
+        const tA = a.updatedAt || 0;
+        const tB = b.updatedAt || 0;
+        return noteSort === 'desc' ? tB - tA : tA - tB;
+      });
+      return sorted;
+    }, [noteVideos, noteSort]);
+
     function toggleCategory(key) {
       setExpandedKeys(prev => {
         const next = new Set(prev);
@@ -123,77 +156,127 @@
       });
     }
 
-    return h('div', { className: 'bili-aux-panel' + (isCollapsed ? ' collapsed' : '') },
-      // 头部
-      h('div', { className: 'bili-aux-panel-header' },
-        h('span', { className: 'bili-aux-panel-title' }, '按发布时间筛选'),
-        h('div', { className: 'bili-aux-panel-controls' },
-          // 列表视图
-          h('button', {
-            className: 'bili-aux-view-toggle' + (viewMode === 'list' ? ' active' : ''),
-            title: '列表视图',
-            onClick: () => setViewMode('list')
-          }, '☰'),
-          // 面板视图
-          h('button', {
-            className: 'bili-aux-view-toggle' + (viewMode === 'tab' ? ' active' : ''),
-            title: '面板视图',
-            onClick: () => setViewMode('tab')
-          }, '▦'),
-          // 折叠
-          h('button', {
-            className: 'bili-aux-panel-toggle',
-            title: '折叠/展开',
-            onClick: () => setIsCollapsed(!isCollapsed)
-          }, isCollapsed ? '+' : '−')
+    function noteItem(v) {
+      return h('div', {
+        key: v.bvid,
+        className: 'bili-aux-video-item',
+        onClick: () => { if (v.url) window.open(v.url, '_blank'); }
+      },
+        h('img', { className: 'bili-aux-video-cover', src: v.cover, alt: '', loading: 'lazy' }),
+        h('div', { className: 'bili-aux-video-info' },
+          h('div', { className: 'bili-aux-video-title', title: v.title }, v.title || v.bvid),
+          h('div', { className: 'bili-aux-video-date' }, formatDate(v.uploadDate)),
+          h('div', { className: 'bili-aux-note-text', title: v.note }, v.note || ''),
+          h('div', { className: 'bili-aux-note-time' },
+            v.updatedAt ? '备注于 ' + dayjs(v.updatedAt).format('MM-DD HH:mm') : ''
+          )
         )
+      );
+    }
+
+    return h('div', { className: 'bili-aux-panel' + (isCollapsed ? ' collapsed' : '') },
+      // 头部：大类 tabs + 折叠
+      h('div', { className: 'bili-aux-panel-header' },
+        h('div', { className: 'bili-aux-panel-tabs' },
+          h('button', {
+            className: 'bili-aux-panel-tab' + (panelMode === 'time' ? ' active' : ''),
+            onClick: () => setPanelMode('time')
+          }, '发布时间'),
+          h('button', {
+            className: 'bili-aux-panel-tab' + (panelMode === 'note' ? ' active' : ''),
+            onClick: () => setPanelMode('note')
+          }, '备注')
+        ),
+        h('button', {
+          className: 'bili-aux-panel-toggle',
+          title: '折叠/展开',
+          onClick: () => setIsCollapsed(!isCollapsed)
+        }, isCollapsed ? '+' : '−')
       ),
 
       // 内容区
       h('div', { className: 'bili-aux-panel-body' },
-        videos.length === 0
-          ? h('div', { className: 'bili-aux-empty' }, '暂无数据，滚动页面加载更多视频')
-          : viewMode === 'list'
-            // 列表视图
-            ? categories.map(cat => h('div', {
-                key: cat.key,
-                className: 'bili-aux-category' + (expandedKeys.has(cat.key) ? ' expanded' : ''),
-                'data-key': cat.key
-              },
-                h('div', {
-                  className: 'bili-aux-category-header',
-                  onClick: () => toggleCategory(cat.key)
-                },
-                  h('span', { className: 'bili-aux-category-arrow' }),
-                  h('span', { className: 'bili-aux-category-name' }, cat.label),
-                  h('span', { className: 'bili-aux-category-count' }, cat.videos.length)
-                ),
-                h('div', { className: 'bili-aux-category-list' },
-                  cat.videos.map(videoItem)
+        panelMode === 'time'
+          ? h('div', { className: 'bili-aux-mode-content' },
+              h('div', { className: 'bili-aux-subheader' },
+                h('span', { className: 'bili-aux-subheader-title' }, '按发布时间筛选'),
+                h('div', { className: 'bili-aux-panel-controls' },
+                  h('button', {
+                    className: 'bili-aux-view-toggle' + (viewMode === 'list' ? ' active' : ''),
+                    title: '列表视图',
+                    onClick: () => setViewMode('list')
+                  }, '☰'),
+                  h('button', {
+                    className: 'bili-aux-view-toggle' + (viewMode === 'tab' ? ' active' : ''),
+                    title: '面板视图',
+                    onClick: () => setViewMode('tab')
+                  }, '▦')
                 )
-              ))
-            // 面板视图（选项卡）
-            : h('div', { className: 'bili-aux-tab-view' },
-                h('div', { className: 'bili-aux-tab-bar' },
-                  CATEGORIES.map(cat => h('button', {
-                    key: cat.key,
-                    className: 'bili-aux-tab'
-                      + (activeTab === cat.key ? ' active' : '')
-                      + (groups[cat.key].length === 0 ? ' empty' : ''),
-                    onClick: () => {
-                      if (groups[cat.key].length > 0) setActiveTab(cat.key);
-                    }
-                  },
-                    cat.label,
-                    h('span', { className: 'bili-aux-tab-count' }, groups[cat.key].length)
-                  ))
-                ),
-                h('div', { className: 'bili-aux-tab-content' },
-                  activeVideos.length === 0
-                    ? h('div', { className: 'bili-aux-empty' }, '该分类暂无视频')
-                    : activeVideos.map(videoItem)
+              ),
+              videos.length === 0
+                ? h('div', { className: 'bili-aux-empty' }, '暂无数据，滚动页面加载更多视频')
+                : viewMode === 'list'
+                  ? categories.map(cat => h('div', {
+                      key: cat.key,
+                      className: 'bili-aux-category' + (expandedKeys.has(cat.key) ? ' expanded' : ''),
+                      'data-key': cat.key
+                    },
+                      h('div', {
+                        className: 'bili-aux-category-header',
+                        onClick: () => toggleCategory(cat.key)
+                      },
+                        h('span', { className: 'bili-aux-category-arrow' }),
+                        h('span', { className: 'bili-aux-category-name' }, cat.label),
+                        h('span', { className: 'bili-aux-category-count' }, cat.videos.length)
+                      ),
+                      h('div', { className: 'bili-aux-category-list' },
+                        cat.videos.map(videoItem)
+                      )
+                    ))
+                  : h('div', { className: 'bili-aux-tab-view' },
+                      h('div', { className: 'bili-aux-tab-bar' },
+                        CATEGORIES.map(cat => h('button', {
+                          key: cat.key,
+                          className: 'bili-aux-tab'
+                            + (activeTab === cat.key ? ' active' : '')
+                            + (groups[cat.key].length === 0 ? ' empty' : ''),
+                          onClick: () => {
+                            if (groups[cat.key].length > 0) setActiveTab(cat.key);
+                          }
+                        },
+                          cat.label,
+                          h('span', { className: 'bili-aux-tab-count' }, groups[cat.key].length)
+                        ))
+                      ),
+                      h('div', { className: 'bili-aux-tab-content' },
+                        activeVideos.length === 0
+                          ? h('div', { className: 'bili-aux-empty' }, '该分类暂无视频')
+                          : activeVideos.map(videoItem)
+                      )
+                    )
+            )
+          : h('div', { className: 'bili-aux-mode-content' },
+              h('div', { className: 'bili-aux-subheader' },
+                h('span', { className: 'bili-aux-subheader-title' }, '按备注筛选'),
+                h('div', { className: 'bili-aux-panel-controls' },
+                  h('button', {
+                    className: 'bili-aux-view-toggle' + (noteSort === 'desc' ? ' active' : ''),
+                    title: '最新优先',
+                    onClick: () => setNoteSort('desc')
+                  }, '↓'),
+                  h('button', {
+                    className: 'bili-aux-view-toggle' + (noteSort === 'asc' ? ' active' : ''),
+                    title: '最早优先',
+                    onClick: () => setNoteSort('asc')
+                  }, '↑')
                 )
-              )
+              ),
+              sortedNoteVideos.length === 0
+                ? h('div', { className: 'bili-aux-empty' }, '暂无备注视频')
+                : h('div', { className: 'bili-aux-note-list' },
+                    sortedNoteVideos.map(noteItem)
+                  )
+            )
       )
     );
   }

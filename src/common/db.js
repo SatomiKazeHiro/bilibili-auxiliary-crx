@@ -72,6 +72,11 @@
       return withStore('readonly', (store) => store.getAll());
     },
 
+    async getVideosWithNote() {
+      const all = await this.getAllVideos();
+      return all.filter(v => v.note && v.note.trim() !== '');
+    },
+
     async batchSave(videos) {
       const db = await openDB();
       return new Promise((resolve, reject) => {

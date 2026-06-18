@@ -1,0 +1,29 @@
+/* ========== B站样式调整（视频子集） ========== */
+.video-pod .slide-inner .slide-item {
+  max-width: unset !important;
+}
+.video-pod .slide-inner .slide-item .bili-aux-slide-duration {
+  color: var(--brand_blue);
+}
+
+/* ========== 视频选集总时长标签 ========== */
+.bili-aux-total-duration {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 3px 8px;
+  background: var(--brand_blue);
+  color: #fff;
+  font-size: 12px;
+  border-radius: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.bili-aux-slide-duration {
+  margin-left: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  font-weight: 400;
+}

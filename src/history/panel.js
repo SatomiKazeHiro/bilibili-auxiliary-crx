@@ -63,13 +63,13 @@
       h('img', { className: 'bili-aux-video-cover', src: v.cover, alt: '', loading: 'lazy' }),
       h('div', { className: 'bili-aux-video-info' },
         h('div', { className: 'bili-aux-video-title', title: v.title }, v.title || ''),
-        h('div', { className: 'bili-aux-video-date' }, formatDate(v.uploadDate))
+        h('div', { className: 'bili-aux-video-date' }, formatDate(v.date_uploaded))
       )
     );
   }
 
   // 外部通过此 ref 操作 React 状态
-  const appRef = { setVideos: null, reset: null };
+  const appRef = { setVideos: null, reset: null, refreshNotes: null };
 
   function PanelApp() {
     const [videos, setVideos] = useState([]);
@@ -83,6 +83,7 @@
 
     // 暴露 setter 给外部
     appRef.setVideos = setVideos;
+    appRef.refreshNotes = loadNoteVideos;
     appRef.reset = () => {
       setVideos([]);
       setNoteVideos([]);
@@ -95,27 +96,39 @@
 
     useEffect(() => {
       if (panelMode === 'note') {
-        window.BiliAuxDB.getVideosWithNote().then(list => {
-          // 兜底补全：标题缺失用 bvid，链接缺失构造默认链接
-          const enriched = list.map(v => ({
-            ...v,
-            title: v.title || v.bvid,
-            cover: v.cover || '',
-            url: v.url || `https://www.bilibili.com/video/${v.bvid}`
-          }));
-          setNoteVideos(enriched);
-        }).catch(err => {
-          console.error('[BiliAux] load notes failed', err);
-        });
+        loadNoteVideos();
       }
-    }, [panelMode]);
+    }, [panelMode, noteSort]);
+
+    async function loadNoteVideos() {
+      try {
+        const SB = window.BiliAuxSupabase;
+        let noteList = [];
+        if (SB) {
+          noteList = await SB.fetchVideosWithNote(); // 含完整字段
+        } else {
+          noteList = await window.BiliAuxDB.getAllNotes();
+        }
+
+        const enriched = noteList.map(v => ({
+          ...v,
+          title: v.title || v.bvid,
+          cover: v.cover || '',
+          url: v.url || `https://www.bilibili.com/video/${v.bvid}`
+        }));
+
+        setNoteVideos(enriched);
+      } catch (err) {
+        console.error('[BiliAux] load notes failed', err);
+      }
+    }
 
     // 分组结果两个视图共用
     const groups = useMemo(() => {
       const g = {};
       CATEGORIES.forEach(c => g[c.key] = []);
       for (const v of videos) {
-        const key = getCategoryKey(v.uploadDate);
+        const key = getCategoryKey(v.date_uploaded);
         if (g[key]) g[key].push(v);
 
         // 细粒度分类的视频也归入粗粒度分类，避免"本季度"被"本月/上月"掏空
@@ -140,8 +153,8 @@
     const sortedNoteVideos = useMemo(() => {
       const sorted = [...noteVideos];
       sorted.sort((a, b) => {
-        const tA = a.updatedAt || 0;
-        const tB = b.updatedAt || 0;
+        const tA = a.note_updated_at || 0;
+        const tB = b.note_updated_at || 0;
         return noteSort === 'desc' ? tB - tA : tA - tB;
       });
       return sorted;
@@ -165,10 +178,10 @@
         h('img', { className: 'bili-aux-video-cover', src: v.cover, alt: '', loading: 'lazy' }),
         h('div', { className: 'bili-aux-video-info' },
           h('div', { className: 'bili-aux-video-title', title: v.title }, v.title || v.bvid),
-          h('div', { className: 'bili-aux-video-date' }, formatDate(v.uploadDate)),
+          h('div', { className: 'bili-aux-video-date' }, formatDate(v.date_uploaded)),
           h('div', { className: 'bili-aux-note-text', title: v.note }, v.note || ''),
           h('div', { className: 'bili-aux-note-time' },
-            v.updatedAt ? '备注于 ' + dayjs(v.updatedAt).format('MM-DD HH:mm') : ''
+            v.note_updated_at ? '备注于 ' + dayjs(v.note_updated_at).format('MM-DD HH:mm') : ''
           )
         )
       );
@@ -302,6 +315,10 @@
     },
     reset() {
       if (appRef.reset) appRef.reset();
+    },
+    refreshNotes() {
+      ensureMounted();
+      if (appRef.refreshNotes) appRef.refreshNotes();
     }
   };
 })();

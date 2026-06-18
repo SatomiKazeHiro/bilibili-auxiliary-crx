@@ -12,6 +12,7 @@
 
   const SEEN_BVIDS = new Set();
   const PENDING_BVIDS = new Set();
+  const FETCH_QUEUE = [];
   let debounceTimer = null;
   let isProcessing = false;
 
@@ -63,6 +64,7 @@
       if (currentPath.startsWith('/history')) {
         console.log('[BiliAux] route changed to history, start');
         SEEN_BVIDS.clear();
+        FETCH_QUEUE.length = 0;
         Object.keys(pageVideos).forEach(k => delete pageVideos[k]);
         document.querySelectorAll('.history-card[data-bili-aux-processed]').forEach(c => {
           c.removeAttribute('data-bili-aux-processed');
@@ -134,7 +136,7 @@
 
       // 加入当前页面数据源
       if (!pageVideos[info.bvid]) {
-        pageVideos[info.bvid] = { ...info, uploadDate: '', datePublished: '', tags: [], isInvalid: false };
+        pageVideos[info.bvid] = { ...info, date_uploaded: '', date_published: '', tags: [], is_invalid: false };
       } else {
         // 更新基础信息（链接/标题/封面可能变化）
         pageVideos[info.bvid].url = info.url;
@@ -152,12 +154,15 @@
     }
 
     if (toFetch.length > 0) {
-      console.log('[BiliAux] need fetch', toFetch.length, 'videos');
-      processBatch(toFetch).finally(() => { isProcessing = false; });
-    } else {
-      refreshPanel();
-      isProcessing = false;
+      console.log('[BiliAux] enqueue', toFetch.length, 'videos to fetch queue');
+      for (const info of toFetch) {
+        FETCH_QUEUE.push(info);
+      }
     }
+
+    isProcessing = false;
+    refreshPanel();
+    runFetchQueue();
   }
 
   function parseCard(card) {
@@ -190,44 +195,76 @@
 
   // ========== 数据获取 ==========
 
-  async function processBatch(infos) {
-    const missing = [];
-    for (const info of infos) {
-      const cached = await DB.getVideo(info.bvid);
-      if (cached) {
-        pageVideos[info.bvid] = cached;
-        updateCard(info.bvid, cached);
-      } else {
-        missing.push(info);
+  let isBatching = false;
+  const CONCURRENCY = 5;
+
+  async function runFetchQueue() {
+    if (isBatching) return;
+    isBatching = true;
+
+    try {
+      while (FETCH_QUEUE.length > 0) {
+        const batch = FETCH_QUEUE.splice(0, CONCURRENCY);
+        console.log('[BiliAux] fetch batch', batch.length, batch.map(b => b.bvid));
+
+        // 先检查本地缓存，命中直接渲染
+        const missing = [];
+        for (const info of batch) {
+          const cached = await DB.getVideo(info.bvid);
+          if (cached && cached.date_uploaded) {
+            pageVideos[info.bvid] = cached;
+            await updateCard(info.bvid);
+          } else {
+            missing.push(info);
+          }
+        }
+
+        if (missing.length > 0) {
+          await Promise.allSettled(missing.map(info => fetchVideoInfo(info)));
+        }
       }
+    } catch (err) {
+      console.error('[BiliAux] runFetchQueue error', err);
+    } finally {
+      isBatching = false;
     }
 
-    if (missing.length === 0) {
-      refreshPanel();
-      return;
-    }
-
-    const CONCURRENCY = 3;
-    for (let i = 0; i < missing.length; i += CONCURRENCY) {
-      const batch = missing.slice(i, i + CONCURRENCY);
-      await Promise.allSettled(batch.map(info => fetchVideoInfo(info)));
+    // 运行期间可能又有新任务入队，再触发一次
+    if (FETCH_QUEUE.length > 0) {
+      setTimeout(runFetchQueue, 0);
     }
 
     refreshPanel();
   }
 
   async function fetchVideoInfo(info) {
-    if (PENDING_BVIDS.has(info.bvid)) return;
+    console.log('[BiliAux] fetchVideoInfo called', info?.bvid);
+    if (PENDING_BVIDS.has(info.bvid)) {
+      console.log('[BiliAux] fetchVideoInfo already pending', info.bvid);
+      return;
+    }
     PENDING_BVIDS.add(info.bvid);
 
+    console.log('[BiliAux] fetching', info.bvid);
+
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => {
+        console.warn('[BiliAux] fetch timeout', info.bvid);
+        controller.abort();
+      }, 10000);
+
       const resp = await fetch(`https://www.bilibili.com/video/${info.bvid}`, {
         method: 'GET',
         credentials: 'omit',
+        signal: controller.signal,
         headers: {
           'Accept': 'text/html,application/xhtml+xml'
         }
       });
+      clearTimeout(timeout);
+
+      console.log('[BiliAux] fetch response', info.bvid, resp.status);
 
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const htmlText = await resp.text();
@@ -238,17 +275,18 @@
         url: info.url,
         title: info.title,
         cover: info.cover,
-        uploadDate: meta.uploadDate || '',
-        datePublished: meta.datePublished || '',
+        date_uploaded: meta.date_uploaded || '',
+        date_published: meta.date_published || '',
         tags: meta.tags || [],
-        isInvalid: !meta.uploadDate
+        is_invalid: !meta.date_uploaded
       };
 
       await DB.saveVideo(videoData);
       pageVideos[info.bvid] = videoData;
-      updateCard(info.bvid, videoData);
+      await updateCard(info.bvid);
+      console.log('[BiliAux] fetch success', info.bvid, videoData.date_uploaded);
     } catch (err) {
-      console.warn('[BiliAux] fetch failed for', info.bvid, err.message);
+      console.warn('[BiliAux] fetch failed for', info.bvid, err.name, err.message);
     } finally {
       PENDING_BVIDS.delete(info.bvid);
     }
@@ -261,8 +299,8 @@
     const uploadMeta = doc.querySelector('meta[itemprop="uploadDate"]');
     const publishMeta = doc.querySelector('meta[itemprop="datePublished"]');
 
-    const uploadDate = uploadMeta ? uploadMeta.getAttribute('content') || '' : '';
-    const datePublished = publishMeta ? publishMeta.getAttribute('content') || '' : '';
+    const date_uploaded = uploadMeta ? uploadMeta.getAttribute('content') || '' : '';
+    const date_published = publishMeta ? publishMeta.getAttribute('content') || '' : '';
 
     let tags = [];
     const tagsMatch = htmlText.match(/"tags"\s*:\s*(\[[\s\S]*?\])\s*[,}\]]/);
@@ -274,19 +312,30 @@
       }
     }
 
-    return { uploadDate, datePublished, tags };
+    return { date_uploaded, date_published, tags };
   }
 
   // ========== UI 渲染 ==========
 
-  function updateCard(bvid, data) {
+  async function updateCard(bvid) {
     const cards = document.querySelectorAll(`.history-card[data-bili-aux-bvid="${bvid}"]`);
+    const videoData = pageVideos[bvid];
+    const noteData = await DB.getNote(bvid);
     for (const card of cards) {
-      renderBadge(card, data);
-      const noteBadge = card.querySelector('.note-badge');
-      if (noteBadge && data.note) {
-        noteBadge.classList.add('has-note');
-        noteBadge.title = data.note;
+      if (videoData) renderBadge(card, videoData);
+      const noteDisplay = card.querySelector('.note-display');
+      if (noteDisplay) {
+        const panel = noteDisplay.querySelector('.note-panel');
+        const badge = noteDisplay.querySelector('.note-badge');
+        if (noteData && noteData.note) {
+          noteDisplay.classList.add('has-content');
+          if (panel) panel.textContent = noteData.note;
+          if (badge) badge.classList.add('has-note');
+        } else {
+          noteDisplay.classList.remove('has-content');
+          if (panel) panel.textContent = '';
+          if (badge) badge.classList.remove('has-note');
+        }
       }
     }
   }
@@ -301,7 +350,7 @@
   }
 
   function renderBadge(card, data) {
-    if (!data.uploadDate) return;
+    if (!data.date_uploaded) return;
     if (card.querySelector('.upload-date-badge')) return;
 
     const mainEl = card.querySelector('.history-card__main, .bili-video-card__wrap, .history-card__left');
@@ -309,8 +358,8 @@
 
     const badge = document.createElement('div');
     badge.className = 'upload-date-badge';
-    badge.textContent = formatShortDate(data.uploadDate);
-    badge.title = `上传时间: ${data.uploadDate}`;
+    badge.textContent = formatShortDate(data.date_uploaded);
+    badge.title = `上传时间: ${data.date_uploaded}`;
 
     const wrap = card.querySelector('.bili-video-card') || mainEl;
     if (wrap && getComputedStyle(wrap).position === 'static') {
@@ -337,7 +386,7 @@
   }
 
   async function renderNoteIcon(card, bvid) {
-    if (card.querySelector('.note-badge')) return;
+    if (card.querySelector('.note-display')) return;
 
     const wrap = card.querySelector('.bili-video-card')
       || card.querySelector('.history-card__main, .bili-video-card__wrap, .history-card__left');
@@ -346,38 +395,67 @@
     const cover = wrap.querySelector('.bili-video-card__cover, .bili-cover-card');
     const target = cover || wrap;
 
+    const display = document.createElement('div');
+    display.className = 'note-display';
+
     const badge = document.createElement('div');
     badge.className = 'note-badge';
     badge.innerHTML = '✎';
     badge.title = '点击添加备注';
 
+    const lineLeft = document.createElement('div');
+    lineLeft.className = 'note-line-left';
+    const lineUp = document.createElement('div');
+    lineUp.className = 'note-line-up';
+    const lineRight = document.createElement('div');
+    lineRight.className = 'note-line-right';
+
+    const panel = document.createElement('div');
+    panel.className = 'note-panel';
+
+    display.appendChild(badge);
+    display.appendChild(lineLeft);
+    display.appendChild(lineUp);
+    display.appendChild(lineRight);
+    display.appendChild(panel);
+
     if (target && getComputedStyle(target).position === 'static') {
       target.style.position = 'relative';
     }
 
-    try {
-      const dbData = await DB.getVideo(bvid);
-      if (dbData && dbData.note) {
-        badge.classList.add('has-note');
-        badge.title = dbData.note;
+    if (cover) {
+      if (!cover.dataset.biliAuxOriginalOverflow) {
+        cover.dataset.biliAuxOriginalOverflow = cover.style.overflow || '';
       }
-    } catch (e) {
-      // ignore
+      cover.style.overflow = 'visible';
     }
 
     badge.addEventListener('click', async (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const dbData = await DB.getVideo(bvid);
+      const noteData = await DB.getNote(bvid);
+      const videoData = await DB.getVideo(bvid);
+      const data = noteData || videoData;
       const titleEl = card.querySelector('.bili-video-card__title a, .history-card__title, .title, h3');
-      const title = dbData?.title || titleEl?.textContent?.trim() || bvid;
-      openNoteEditor(bvid, title, dbData?.note || '', dbData?.cover || "");
+      const title = data?.title || titleEl?.textContent?.trim() || bvid;
+      openNoteEditor(bvid, title, data?.note || '', data?.cover || "", card);
     });
 
-    target.appendChild(badge);
+    target.appendChild(display);
+
+    try {
+      const noteData = await DB.getNote(bvid);
+      if (noteData && noteData.note) {
+        display.classList.add('has-content');
+        panel.textContent = noteData.note;
+        badge.classList.add('has-note');
+      }
+    } catch (e) {
+      // ignore
+    }
   }
 
-  function openNoteEditor(bvid, title, currentNote, cover) {
+  function openNoteEditor(bvid, title, currentNote, cover, card) {
     const overlay = document.createElement('div');
     overlay.className = 'bili-aux-modal-overlay';
 
@@ -451,39 +529,51 @@
       const note = textarea.value.trim();
 
       // 组装完整数据：保留数据库已有字段，补充当前 DOM 可见信息
-      const existing = await DB.getVideo(bvid);
+      const noteExisting = await DB.getNote(bvid);
+      const videoExisting = await DB.getVideo(bvid);
+      const existing = noteExisting || videoExisting || {};
       const cardTitleEl = card.querySelector('.bili-video-card__title a, .history-card__title, .title, h3');
       const cardImgEl = card.querySelector('.bili-cover-card__thumbnail img, .history-card__cover img, img');
       const cardLinkEl = card.querySelector('a[href*="/video/BV"]');
       const href = cardLinkEl ? cardLinkEl.getAttribute('href') : '';
 
-      const videoData = {
+      const noteData = {
         bvid,
         title: existing?.title || cardTitleEl?.textContent?.trim() || bvid,
         cover: existing?.cover || cardImgEl?.getAttribute('src') || '',
         url: existing?.url || (href ? (href.startsWith('http') ? href : 'https:' + href) : `https://www.bilibili.com/video/${bvid}`),
-        uploadDate: existing?.uploadDate || '',
-        datePublished: existing?.datePublished || '',
+        date_uploaded: existing?.date_uploaded || '',
+        date_published: existing?.date_published || '',
         tags: existing?.tags || [],
+        is_invalid: existing?.is_invalid || false,
         note,
-        updatedAt: Date.now()
+        note_updated_at: Date.now()
       };
 
-      await DB.saveVideo(videoData);
+      await DB.saveNote(noteData);
+
+      // 提交到 Supabase，并刷新本地和面板
+      let remoteUpdatedAt = null;
+      try {
+        if (window.BiliAuxSupabase) {
+          const videoToUpsert = pageVideos[bvid] ? { ...pageVideos[bvid] } : { ...noteData };
+          videoToUpsert.note = note;
+          videoToUpsert.note_updated_at = Date.now();
+          const remoteVideo = await window.BiliAuxSupabase.upsertVideo(videoToUpsert);
+          remoteUpdatedAt = remoteVideo?.note_updated_at;
+        }
+      } catch (err) {
+        console.warn('[BiliAux] upsert video to Supabase failed', bvid, err.message);
+      }
 
       if (pageVideos[bvid]) {
         pageVideos[bvid].note = note;
+        if (remoteUpdatedAt) pageVideos[bvid].note_updated_at = remoteUpdatedAt;
       }
 
-      document.querySelectorAll(`.history-card[data-bili-aux-bvid="${bvid}"] .note-badge`).forEach(badge => {
-        if (note) {
-          badge.classList.add('has-note');
-          badge.title = note;
-        } else {
-          badge.classList.remove('has-note');
-          badge.title = '点击添加备注';
-        }
-      });
+      await updateCard(bvid);
+      refreshPanel();
+      Panel.refreshNotes && Panel.refreshNotes();
 
       close();
     });
@@ -502,15 +592,39 @@
     return location.pathname === '/history' || location.pathname.startsWith('/history/');
   }
 
-  function start() {
+  async function start() {
     if (isActive) return;
     if (!shouldActivate()) {
       console.log('[BiliAux] not on history page, standby. path=', location.pathname);
       return;
     }
+
+    // 清理旧的 note-display 和恢复 overflow
+    document.querySelectorAll('.note-display').forEach(el => {
+      const parent = el.parentElement;
+      if (parent && (parent.classList.contains('bili-video-card__cover') || parent.classList.contains('bili-cover-card'))) {
+        if (parent.dataset.biliAuxOriginalOverflow !== undefined) {
+          parent.style.overflow = parent.dataset.biliAuxOriginalOverflow;
+          delete parent.dataset.biliAuxOriginalOverflow;
+        }
+      }
+      el.remove();
+    });
+
     isActive = true;
     Panel.init();
     initObserver();
+
+    // 启动时从 Supabase 同步备注到本地，让滚动加载的新卡片也能显示备注
+    try {
+      if (window.BiliAuxSupabase) {
+        const synced = await DB.syncNotesFromSupabase();
+        console.log('[BiliAux] synced', synced, 'notes from Supabase');
+      }
+    } catch (err) {
+      console.warn('[BiliAux] sync notes from Supabase failed', err.message);
+    }
+
     scheduleProcess();
     console.log('[BiliAux] activated on history page, path=', location.pathname + location.search);
     processNewCards();
@@ -520,7 +634,20 @@
     isActive = false;
     Object.keys(pageVideos).forEach(k => delete pageVideos[k]);
     SEEN_BVIDS.clear();
+    FETCH_QUEUE.length = 0;
     Panel.reset && Panel.reset();
+
+    // 清理 note-display
+    document.querySelectorAll('.note-display').forEach(el => {
+      const parent = el.parentElement;
+      if (parent && (parent.classList.contains('bili-video-card__cover') || parent.classList.contains('bili-cover-card'))) {
+        if (parent.dataset.biliAuxOriginalOverflow !== undefined) {
+          parent.style.overflow = parent.dataset.biliAuxOriginalOverflow;
+          delete parent.dataset.biliAuxOriginalOverflow;
+        }
+      }
+      el.remove();
+    });
   }
 
   function init() {
@@ -532,6 +659,28 @@
     start();
     console.log('[BiliAux] B站历史记录辅助插件已初始化, path=', location.pathname + location.search);
   }
+
+  // 手动上传本地数据到 Supabase（控制台执行：BiliAuxUploadLocal()）
+  window.BiliAuxUploadLocal = async function () {
+    if (!window.BiliAuxSupabase) {
+      console.error('[BiliAux] Supabase not loaded');
+      return 0;
+    }
+    try {
+      const localCount = (await DB.getAllVideos()).length;
+      if (localCount === 0) {
+        console.log('[BiliAux] no local data to upload');
+        return 0;
+      }
+      console.log('[BiliAux] uploading', localCount, 'local videos...');
+      const uploaded = await DB.uploadLocalToSupabase();
+      console.log('[BiliAux] uploaded', uploaded, 'videos to Supabase');
+      return uploaded;
+    } catch (err) {
+      console.error('[BiliAux] manual upload failed', err.message);
+      throw err;
+    }
+  };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

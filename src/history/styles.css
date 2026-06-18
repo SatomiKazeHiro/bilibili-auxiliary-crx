@@ -240,8 +240,8 @@
   word-break: break-all;
 }
 
-.bili-aux-video-title [title^=「], 
-.bili-aux-video-title [title^=『], 
+.bili-aux-video-title [title^=「],
+.bili-aux-video-title [title^=『],
 .bili-aux-video-title [title^=【] {
   text-indent: -.5em;
 }
@@ -404,43 +404,153 @@
   border-radius: 3px;
 }
 
-/* ========== 备注图标 ========== */
+/* ========== 备注显示（引线 + 面板） ========== */
+.note-display {
+  position: absolute;
+  left: -10px;
+  top: -36px;
+  width: calc(100% + 10px);
+  height: calc(100% + 36px);
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* 引线 - 向左（从图标到左边缘，不接触左卡片，间隙16px中只伸10px） */
+.note-line-left {
+  position: absolute;
+  left: 0;
+  bottom: 16px;
+  width: 16px;
+  height: 1px;
+  background: #fb7299;
+  box-shadow: 0 2px 8px rgba(251, 114, 153, 0.5);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+/* 引线 - 向上 */
+.note-line-up {
+  position: absolute;
+  left: 0;
+  bottom: 16px;
+  width: 1px;
+  height: calc(100% - 32px);
+  background: #fb7299;
+  box-shadow: 0 2px 8px rgba(251, 114, 153, 0.5);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+/* 引线 - 向右 */
+.note-line-right {
+  position: absolute;
+  left: 0;
+  top: 16px;
+  width: 16px;
+  height: 1px;
+  background: #fb7299;
+  box-shadow: 0 2px 8px rgba(251, 114, 153, 0.5);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+/* 面板：黑底白字，单行，悬浮展开 */
+.note-panel {
+  position: absolute;
+  left: 16px;
+  top: 4px;
+  /*right: 6px;*/
+  max-width: calc(100% - 22px);
+  height: 24px;
+  background: #fb7299;
+  color: #fff;
+  font-size: 12px;
+  line-height: 24px;
+  /*padding: 0 10px;*/
+  padding-left: 6px;
+  padding-right: 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: auto;
+  opacity: 0;
+  transition: opacity 0.2s, height 0.2s, white-space 0.2s;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+
+.note-panel::before {
+  content: "💡";
+}
+
+/* 有备注时显示引线+面板 */
+.note-display.has-content .note-line-left,
+.note-display.has-content .note-line-up,
+.note-display.has-content .note-line-right,
+.note-display.has-content .note-panel {
+  opacity: 1;
+}
+
+/* 面板悬浮展开 */
+.note-panel:hover {
+  white-space: normal;
+  height: auto;
+  min-height: 24px;
+  max-height: 120px;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+/* 图标 */
 .note-badge {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  left: 16px;
+  bottom: 6px;
   z-index: 10;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.45);
   color: #fff;
-  font-size: 14px;
+  font-size: 11px;
   line-height: 1;
-  width: 26px;
-  height: 26px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  display: none;
-  align-items: center;
-  justify-content: center;
   cursor: pointer;
   pointer-events: auto;
   transition: all 0.15s;
   user-select: none;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  opacity: 0.72;
+  display: none;
+  align-items: center;
+  justify-content: center;
 }
 
 .note-badge:hover {
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.75);
+  opacity: 1;
   transform: scale(1.1);
 }
 
-.note-badge.has-note {
+.bili-video-card__cover:hover .note-badge {
+  display: flex;
+}
+
+.note-display.has-content .note-badge {
   display: flex;
   background: #fb7299;
   border: 2px solid #fff;
   box-shadow: 0 2px 8px rgba(251, 114, 153, 0.5);
   animation: note-pulse 2s ease-in-out infinite;
+  opacity: 1;
+  width: 22px;
+  height: 22px;
 }
 
-.note-badge.has-note:hover {
+.note-display.has-content .note-badge:hover {
   background: #ff85a7;
   animation: none;
   transform: scale(1.1);
@@ -449,13 +559,6 @@
 @keyframes note-pulse {
   0%, 100% { box-shadow: 0 2px 8px rgba(251, 114, 153, 0.5); }
   50% { box-shadow: 0 2px 14px rgba(251, 114, 153, 0.8); }
-}
-
-/* 鼠标悬浮在封面上时显示无备注的图标 */
-.bili-cover-card:hover .note-badge,
-.bili-video-card__cover:hover .note-badge,
-.history-card:hover .note-badge {
-  display: flex;
 }
 
 /* ========== 备注弹窗 ========== */

@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "B站辅助插件",
+  "version": "1.0.0",
+  "description": "Bilibili 辅助功能集合：历史记录上传时间展示与筛选、视频选集总时长等",
+  "permissions": [],
+  "host_permissions": [
+    "https://www.bilibili.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.bilibili.com/*"
+      ],
+      "js": [
+        "main.js"
+      ],
+      "css": [
+        "history.css",
+        "video.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  }
+}

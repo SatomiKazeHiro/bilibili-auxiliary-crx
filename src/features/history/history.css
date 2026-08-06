@@ -1,3 +1,9 @@
+/* 主题色：用于主题切换。当前为 B 站粉 #fb7299（备用蓝 #00AEEC） */
+:root {
+  --brand-color: #fb7299;
+  --brand-color-rgb: 251, 114, 153;
+}
+
 /* ========== 时间标签 ========== */
 .upload-date-badge {
   position: absolute;
@@ -47,7 +53,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  background: #fb7299;
+  background: var(--brand-color);
   color: #fff;
   border-radius: 8px 8px 0 0;
   flex-shrink: 0;
@@ -355,7 +361,7 @@
 }
 
 .bili-aux-tab.active {
-  background: #fb7299;
+  background: var(--brand-color);
   color: #fff;
 }
 
@@ -406,52 +412,67 @@
 
 /* ========== 备注显示（引线 + 面板） ========== */
 .note-display {
+  --nd-badge-size: 22px;
+  --nd-badge-bottom: 12px;
+  --nd-badge-left: 16px;
+  --nd-panel-top: 4px;
+  --nd-panel-left: 16px;
+  --nd-panel-height: 24px;
+  --nd-line-length: 16px;
+  --nd-line-thickness: 1px;
+  --nd-display-overflow-x: 10px;
+  --nd-display-overflow-y: 36px;
+  --nd-panel-right-margin: 6px;
+
+  --nd-line-y-bottom: calc(var(--nd-badge-bottom) + var(--nd-badge-size) / 2 - var(--nd-line-thickness) / 2);
+  --nd-line-y-top: calc(var(--nd-panel-top) + var(--nd-panel-height) / 2 - var(--nd-line-thickness) / 2);
+
   position: absolute;
-  left: -10px;
-  top: -36px;
-  width: calc(100% + 10px);
-  height: calc(100% + 36px);
+  left: calc(-1 * var(--nd-display-overflow-x));
+  top: calc(-1 * var(--nd-display-overflow-y));
+  width: calc(100% + var(--nd-display-overflow-x));
+  height: calc(100% + var(--nd-display-overflow-y));
   pointer-events: none;
   z-index: 20;
 }
 
-/* 引线 - 向左（从图标到左边缘，不接触左卡片，间隙16px中只伸10px） */
+/* 引线 - 1.向左（从图标到左边缘，不接触左卡片，间隙16px中只伸10px） */
 .note-line-left {
   position: absolute;
   left: 0;
-  bottom: 16px;
-  width: 16px;
-  height: 1px;
-  background: #fb7299;
-  box-shadow: 0 2px 8px rgba(251, 114, 153, 0.5);
+  bottom: var(--nd-line-y-bottom);
+  width: var(--nd-line-length);
+  height: var(--nd-line-thickness);
+  background: var(--brand-color);
+  box-shadow: 0 2px 8px rgba(var(--brand-color-rgb), 0.5);
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.2s;
 }
 
-/* 引线 - 向上 */
+/* 引线 - 2.向上 */
 .note-line-up {
   position: absolute;
   left: 0;
-  bottom: 16px;
-  width: 1px;
-  height: calc(100% - 32px);
-  background: #fb7299;
-  box-shadow: 0 2px 8px rgba(251, 114, 153, 0.5);
+  bottom: var(--nd-line-y-bottom);
+  width: var(--nd-line-thickness);
+  height: calc(100% - var(--nd-line-y-top) - var(--nd-line-y-bottom));
+  background: var(--brand-color);
+  box-shadow: 0 2px 8px rgba(var(--brand-color-rgb), 0.5);
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.2s;
 }
 
-/* 引线 - 向右 */
+/* 引线 - 3.向右 */
 .note-line-right {
   position: absolute;
   left: 0;
-  top: 16px;
-  width: 16px;
-  height: 1px;
-  background: #fb7299;
-  box-shadow: 0 2px 8px rgba(251, 114, 153, 0.5);
+  top: var(--nd-line-y-top);
+  width: var(--nd-line-length);
+  height: var(--nd-line-thickness);
+  background: var(--brand-color);
+  box-shadow: 0 2px 8px rgba(var(--brand-color-rgb), 0.5);
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.2s;
@@ -460,15 +481,15 @@
 /* 面板：黑底白字，单行，悬浮展开 */
 .note-panel {
   position: absolute;
-  left: 16px;
-  top: 4px;
+  left: var(--nd-panel-left);
+  top: var(--nd-panel-top);
   /*right: 6px;*/
-  max-width: calc(100% - 22px);
-  height: 24px;
-  background: #fb7299;
+  max-width: calc(100% - var(--nd-panel-left) - var(--nd-panel-right-margin));
+  height: var(--nd-panel-height);
+  background: var(--brand-color);
   color: #fff;
   font-size: 12px;
-  line-height: 24px;
+  line-height: var(--nd-panel-height);
   /*padding: 0 10px;*/
   padding-left: 6px;
   padding-right: 10px;
@@ -476,6 +497,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  word-break: break-all;
   pointer-events: auto;
   opacity: 0;
   transition: opacity 0.2s, height 0.2s, white-space 0.2s;
@@ -499,7 +521,7 @@
 .note-panel:hover {
   white-space: normal;
   height: auto;
-  min-height: 24px;
+  min-height: var(--nd-panel-height);
   max-height: 120px;
   overflow-y: auto;
   z-index: 100;
@@ -508,30 +530,31 @@
 /* 图标 */
 .note-badge {
   position: absolute;
-  left: 16px;
-  bottom: 6px;
+  left: var(--nd-badge-left);
+  bottom: var(--nd-badge-bottom);
+  width: var(--nd-badge-size);
+  height: var(--nd-badge-size);
   z-index: 10;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--brand-color);
+  border: 2px solid #fff;
   color: #fff;
   font-size: 11px;
   line-height: 1;
-  width: 20px;
-  height: 20px;
   border-radius: 50%;
   cursor: pointer;
   pointer-events: auto;
   transition: all 0.15s;
   user-select: none;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
-  opacity: 0.72;
+  box-shadow: 0 2px 8px rgba(var(--brand-color-rgb), 0.5);
+  animation: note-pulse 2s ease-in-out infinite;
   display: none;
   align-items: center;
   justify-content: center;
 }
 
 .note-badge:hover {
-  background: rgba(0, 0, 0, 0.75);
-  opacity: 1;
+  background: #ff85a7;
+  animation: none;
   transform: scale(1.1);
 }
 
@@ -541,24 +564,11 @@
 
 .note-display.has-content .note-badge {
   display: flex;
-  background: #fb7299;
-  border: 2px solid #fff;
-  box-shadow: 0 2px 8px rgba(251, 114, 153, 0.5);
-  animation: note-pulse 2s ease-in-out infinite;
-  opacity: 1;
-  width: 22px;
-  height: 22px;
-}
-
-.note-display.has-content .note-badge:hover {
-  background: #ff85a7;
-  animation: none;
-  transform: scale(1.1);
 }
 
 @keyframes note-pulse {
-  0%, 100% { box-shadow: 0 2px 8px rgba(251, 114, 153, 0.5); }
-  50% { box-shadow: 0 2px 14px rgba(251, 114, 153, 0.8); }
+  0%, 100% { box-shadow: 0 2px 8px rgba(var(--brand-color-rgb), 0.5); }
+  50% { box-shadow: 0 2px 14px rgba(var(--brand-color-rgb), 0.8); }
 }
 
 /* ========== 备注弹窗 ========== */
@@ -621,11 +631,12 @@
   resize: vertical;
   font-family: inherit;
   color: #18191c;
+  word-break: break-all;
   outline: none;
 }
 
 .bili-aux-modal-textarea:focus {
-  border-color: #fb7299;
+  border-color: var(--brand-color);
 }
 
 .bili-aux-modal-actions {
@@ -655,6 +666,6 @@
 }
 
 .bili-aux-modal-btn.save {
-  background: #fb7299;
+  background: var(--brand-color);
   color: #fff;
 }

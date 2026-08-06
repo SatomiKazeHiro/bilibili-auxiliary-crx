@@ -40,12 +40,35 @@
   overflow: hidden;
 }
 
-.bili-aux-panel.collapsed {
-  width: auto;
+/* ========== 折叠态：粉色圆形 FAB ========== */
+.bili-aux-collapsed-trigger {
+  position: fixed;
+  top: 80px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--brand-color);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+  z-index: 9999;
+  transition: transform 0.15s, box-shadow 0.15s;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-.bili-aux-panel.collapsed .bili-aux-panel-body {
-  display: none;
+.bili-aux-collapsed-trigger:hover {
+  transform: scale(1.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+}
+
+.bili-aux-collapsed-trigger:active {
+  transform: scale(0.96);
 }
 
 .bili-aux-panel-header {

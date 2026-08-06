@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import { fetchVideosWithNote } from '../../common/supabase/api.js';
 import { getAllNotes } from '../../common/db/index.js';
 import { CATEGORIES, formatDate, getCategoryKey, formatNoteTime } from '../../shared/date.js';
-import { Icon } from '../../shared/icons.jsx';
+import { Icon, BilibiliLogo } from '../../shared/icons.jsx';
 
 const appRef = { setVideos: null, reset: null, refreshNotes: null };
 
@@ -141,8 +141,18 @@ function PanelApp() {
     });
   }
 
+  if (isCollapsed) {
+    return (
+      <button
+        className="bili-aux-collapsed-trigger"
+        title="展开面板"
+        onClick={() => setIsCollapsed(false)}
+      ><BilibiliLogo size={26} /></button>
+    );
+  }
+
   return (
-    <div className={'bili-aux-panel' + (isCollapsed ? ' collapsed' : '')}>
+    <div className="bili-aux-panel">
       <div className="bili-aux-panel-header">
         <div className="bili-aux-panel-tabs">
           <button
@@ -156,9 +166,9 @@ function PanelApp() {
         </div>
         <button
           className="bili-aux-panel-toggle"
-          title="折叠/展开"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-        ><Icon name={isCollapsed ? 'expand' : 'collapse'} size={14} /></button>
+          title="折叠"
+          onClick={() => setIsCollapsed(true)}
+        ><Icon name="collapse" size={14} /></button>
       </div>
 
       <div className="bili-aux-panel-body">

@@ -53,9 +53,13 @@ export function parseVideoPage(htmlText) {
   const doc = parser.parseFromString(htmlText, 'text/html');
 
   const uploadMeta = doc.querySelector('meta[itemprop="uploadDate"]');
-  const publishMeta = doc.querySelector('meta[itemprop="datePublished"]');
+  let date_uploaded = uploadMeta ? uploadMeta.getAttribute('content') || '' : '';
+  if (!date_uploaded) {
+    const releaseMeta = doc.querySelector('meta[property="video:release_date"]');
+    if (releaseMeta) date_uploaded = releaseMeta.getAttribute('content') || '';
+  }
 
-  const date_uploaded = uploadMeta ? uploadMeta.getAttribute('content') || '' : '';
+  const publishMeta = doc.querySelector('meta[itemprop="datePublished"]');
   const date_published = publishMeta ? publishMeta.getAttribute('content') || '' : '';
 
   let tags = [];
@@ -66,6 +70,11 @@ export function parseVideoPage(htmlText) {
     } catch (e) {
       // ignore
     }
+  }
+  if (tags.length === 0) {
+    tags = Array.from(doc.querySelectorAll('meta[property="video:tag"]'))
+      .map(el => el.getAttribute('content'))
+      .filter(Boolean);
   }
 
   return { date_uploaded, date_published, tags };

@@ -654,6 +654,27 @@
   border: none;
   font-family: inherit;
   transition: opacity 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bili-aux-modal-btn:disabled {
+  cursor: wait;
+  opacity: 0.75;
+}
+
+.bili-aux-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: bili-aux-spin 0.8s linear infinite;
+}
+
+@keyframes bili-aux-spin {
+  to { transform: rotate(360deg); }
 }
 
 .bili-aux-modal-btn:hover {

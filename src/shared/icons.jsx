@@ -8,7 +8,10 @@ const PATHS = {
   expand: 'M12 5v14M5 12h14',
   collapse: 'M5 12h14',
   bulb: 'M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z',
-  edit: 'M11 4H4v16h16v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z'
+  edit: 'M11 4H4v16h16v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z',
+  maximize: 'M3 8V5a2 2 0 0 1 2-2h3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M21 16v3a2 2 0 0 1-2 2h-3',
+  minimize: 'M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 21h3a2 2 0 0 0 2-2v-3M21 16h-3a2 2 0 0 0-2 2v3',
+  close: 'M18 6L6 18M6 6l12 12'
 };
 
 export function Icon({ name, size = 16, ...rest }) {

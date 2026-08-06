@@ -5,6 +5,7 @@ import { fetchVideosWithNote } from '../../common/supabase/api.js';
 import { getAllNotes } from '../../common/db/index.js';
 import { CATEGORIES, formatDate, getCategoryKey, formatNoteTime } from '../../shared/date.js';
 import { Icon, BilibiliLogo } from '../../shared/icons.jsx';
+import { Modal } from './modal.jsx';
 
 const appRef = { setVideos: null, reset: null, refreshNotes: null };
 
@@ -52,6 +53,7 @@ function PanelApp() {
   const [noteVideos, setNoteVideos] = useState([]);
   const [expandedKeys, setExpandedKeys] = useState(new Set(['thisMonth']));
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState('list');
   const [activeTab, setActiveTab] = useState('thisMonth');
   const [panelMode, setPanelMode] = useState('time');
@@ -70,10 +72,8 @@ function PanelApp() {
   appRef.refreshNotes = loadNoteVideos;
 
   useEffect(() => {
-    if (panelMode === 'note') {
-      loadNoteVideos();
-    }
-  }, [panelMode, noteSort]);
+    loadNoteVideos();
+  }, []);
 
   async function loadNoteVideos() {
     try {
@@ -164,11 +164,18 @@ function PanelApp() {
             onClick={() => setPanelMode('note')}
           >备注</button>
         </div>
-        <button
-          className="bili-aux-panel-toggle"
-          title="折叠"
-          onClick={() => setIsCollapsed(true)}
-        ><Icon name="collapse" size={14} /></button>
+        <div className="bili-aux-panel-header-controls">
+          <button
+            className="bili-aux-modal-toggle-btn"
+            title={isModalOpen ? '关闭放大' : '放大浏览'}
+            onClick={() => setIsModalOpen(!isModalOpen)}
+          ><Icon name={isModalOpen ? 'minimize' : 'maximize'} size={14} /></button>
+          <button
+            className="bili-aux-panel-toggle"
+            title="折叠"
+            onClick={() => setIsCollapsed(true)}
+          ><Icon name="collapse" size={14} /></button>
+        </div>
       </div>
 
       <div className="bili-aux-panel-body">
@@ -259,6 +266,13 @@ function PanelApp() {
           </div>
         )}
       </div>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        videos={videos}
+        noteVideos={noteVideos}
+        onCardClick={(url) => window.open(url, '_blank')}
+      />
     </div>
   );
 }

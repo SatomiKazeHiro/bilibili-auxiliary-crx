@@ -27,13 +27,17 @@ function noteItem(v) {
   return (
     <div
       key={v.bvid}
-      className="bili-aux-video-item"
+      className="bili-aux-note-item"
       onClick={() => { if (v.url) window.open(v.url, '_blank'); }}
     >
-      <img className="bili-aux-video-cover" src={v.cover} alt="" loading="lazy" />
-      <div className="bili-aux-video-info">
-        <div className="bili-aux-video-title" title={v.title}>{v.title || v.bvid}</div>
-        <div className="bili-aux-video-date">{formatDate(v.date_uploaded)}</div>
+      <div className="bili-aux-note-item-top">
+        <img className="bili-aux-video-cover" src={v.cover} alt="" loading="lazy" />
+        <div className="bili-aux-video-info">
+          <div className="bili-aux-video-title" title={v.title}>{v.title || v.bvid}</div>
+          <div className="bili-aux-video-date">{formatDate(v.date_uploaded)}</div>
+        </div>
+      </div>
+      <div className="bili-aux-note-item-bottom">
         <div className="bili-aux-note-text" title={v.note}>{v.note || ''}</div>
         <div className="bili-aux-note-time">
           {v.note_updated_at ? '备注于 ' + formatNoteTime(v.note_updated_at) : ''}

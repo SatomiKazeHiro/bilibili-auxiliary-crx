@@ -314,10 +314,37 @@
   padding: 4px 12px 8px;
 }
 
+.bili-aux-note-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-bottom: 4px;
+}
+
+.bili-aux-note-item:hover {
+  background: #f1f2f3;
+}
+
+.bili-aux-note-item-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.bili-aux-note-item-bottom {
+  padding-left: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .bili-aux-note-text {
   font-size: 12px;
   color: #18191c;
-  margin-top: 4px;
   line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;

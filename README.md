@@ -93,3 +93,4 @@ npm run lint
 - 本扩展仅注入 Content Script，不运行后台 Service Worker
 - IndexedDB 用于本地缓存，清理浏览器数据会导致缓存丢失
 - 重要数据请通过控制台命令 `BiliAuxUploadLocal()` 上传到 Supabase
+# bilibili-auxiliary-crx

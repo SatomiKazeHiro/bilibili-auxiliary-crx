@@ -3,6 +3,7 @@ import './features/video/video.css';
 
 import { startHistory } from './features/history/index.js';
 import { startVideo } from './features/video/index.js';
+import { onReady } from './shared/dom.js';
 
 function init() {
   const path = location.pathname;
@@ -18,8 +19,4 @@ function init() {
   }
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
-}
+onReady(init);

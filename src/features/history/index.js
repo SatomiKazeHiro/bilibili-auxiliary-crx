@@ -1,9 +1,10 @@
-import { parseCard, findCards } from './parser.js';
+import { parseCard, findCards, getCardTitle, getCardCover, getCardBvidAndUrl } from './parser.js';
 import { fetchVideoInfo } from './fetcher.js';
 import { renderBadgeFromDB, renderNoteIcon, updateCard, cleanupNoteDisplays } from './renderer.js';
 import { openNoteEditor } from './note-editor.js';
 import { initPanel, resetPanel, updatePanel, refreshPanelNotes, destroyPanel } from './panel-bridge.js';
 import { getVideo, getNote, syncNotesFromSupabase, getAllVideos, uploadLocalToSupabase } from '../../common/db/index.js';
+import { observeMutations } from '../../shared/dom.js';
 
 const SEEN_BVIDS = new Set();
 const PENDING_BVIDS = new Set();
@@ -133,10 +134,19 @@ async function fetchVideoInfoWithState(info) {
 async function handleNoteClick(bvid, card) {
   const noteData = await getNote(bvid);
   const videoData = await getVideo(bvid);
-  const data = noteData || videoData;
-  const titleEl = card.querySelector('.bili-video-card__title a, .history-card__title, .title, h3');
-  const title = data?.title || titleEl?.textContent?.trim() || bvid;
-  openNoteEditor(bvid, title, data?.note || '', data?.cover || '', card, {
+  const cardLink = getCardBvidAndUrl(card);
+  const data = {
+    bvid,
+    title: (noteData?.title || videoData?.title) || getCardTitle(card) || bvid,
+    cover: (noteData?.cover || videoData?.cover) || getCardCover(card) || '',
+    url: (noteData?.url || videoData?.url) || cardLink?.url || `https://www.bilibili.com/video/${bvid}`,
+    note: noteData?.note || '',
+    date_uploaded: videoData?.date_uploaded || '',
+    date_published: videoData?.date_published || '',
+    tags: videoData?.tags || [],
+    is_invalid: videoData?.is_invalid || false,
+  };
+  openNoteEditor(bvid, data, {
     pageVideos,
     onSave: async (savedBvid) => {
       await updateCard(savedBvid, pageVideos);
@@ -156,24 +166,13 @@ function scheduleProcess() {
 function initObserver() {
   if (observerInstance) return;
 
-  observerInstance = new MutationObserver((mutations) => {
+  observerInstance = observeMutations(document.body, (mutations) => {
     if (!isActive) return;
-    let hasNew = false;
-    for (const m of mutations) {
-      if (m.type === 'childList' && m.addedNodes.length > 0) {
-        hasNew = true;
-        break;
-      }
-    }
+    const hasNew = mutations.some(m => m.type === 'childList' && m.addedNodes.length > 0);
     if (hasNew) {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(processNewCards, 300);
     }
-  });
-
-  observerInstance.observe(document.body, {
-    childList: true,
-    subtree: true
   });
 }
 

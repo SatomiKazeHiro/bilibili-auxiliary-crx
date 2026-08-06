@@ -1,6 +1,7 @@
 import { formatShortDate } from '../../shared/date.js';
 import { getVideo, getNote } from '../../common/db/index.js';
 import { el, qsa, qs, ensurePositionRelative, delegate } from '../../shared/dom.js';
+import { iconHTML } from '../../shared/icons.jsx';
 
 const noteClickHandlers = new Map();
 let noteClickDelegateInstalled = false;
@@ -58,13 +59,14 @@ export async function updateCard(bvid, pageVideos) {
     if (!noteDisplay) continue;
     const panel = qs('.note-panel', noteDisplay);
     const badge = qs('.note-badge', noteDisplay);
+    const panelText = panel ? qs('.note-panel-text', panel) : null;
     if (noteData && noteData.note) {
       noteDisplay.classList.add('has-content');
-      if (panel) panel.textContent = noteData.note;
+      if (panelText) panelText.textContent = noteData.note;
       if (badge) badge.classList.add('has-note');
     } else {
       noteDisplay.classList.remove('has-content');
-      if (panel) panel.textContent = '';
+      if (panelText) panelText.textContent = '';
       if (badge) badge.classList.remove('has-note');
     }
   }
@@ -80,9 +82,14 @@ export function renderNoteIcon(card, bvid, onClick) {
   const cover = qs('.bili-video-card__cover, .bili-cover-card', wrap);
   const target = cover || wrap;
 
-  const panel = el('div', { class: 'note-panel' });
+  const panelIcon = el('span', { class: 'note-panel-icon' });
+  panelIcon.innerHTML = iconHTML('bulb', 12);
+  const panelText = el('span', { class: 'note-panel-text' });
+  const panel = el('div', { class: 'note-panel' }, panelIcon, panelText);
+  const badge = el('div', { class: 'note-badge', title: '点击添加备注' });
+  badge.innerHTML = iconHTML('edit', 12);
   const display = el('div', { class: 'note-display' },
-    el('div', { class: 'note-badge', title: '点击添加备注' }, '✎'),
+    badge,
     el('div', { class: 'note-line-left' }),
     el('div', { class: 'note-line-up' }),
     el('div', { class: 'note-line-right' }),
@@ -106,7 +113,7 @@ export function renderNoteIcon(card, bvid, onClick) {
   getNote(bvid).then(noteData => {
     if (noteData && noteData.note) {
       display.classList.add('has-content');
-      panel.textContent = noteData.note;
+      panelText.textContent = noteData.note;
       const badge = qs('.note-badge', display);
       if (badge) badge.classList.add('has-note');
     }

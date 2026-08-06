@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import { fetchVideosWithNote } from '../../common/supabase/api.js';
 import { getAllNotes } from '../../common/db/index.js';
 import { CATEGORIES, formatDate, getCategoryKey, formatNoteTime } from '../../shared/date.js';
+import { Icon } from '../../shared/icons.jsx';
 
 const appRef = { setVideos: null, reset: null, refreshNotes: null };
 
@@ -25,12 +26,11 @@ function videoItem(v) {
 
 function noteItem(v) {
   return (
-    <div
-      key={v.bvid}
-      className="bili-aux-note-item"
-      onClick={() => { if (v.url) window.open(v.url, '_blank'); }}
-    >
-      <div className="bili-aux-note-item-top">
+    <div key={v.bvid} className="bili-aux-note-item">
+      <div
+        className="bili-aux-note-item-top"
+        onClick={() => { if (v.url) window.open(v.url, '_blank'); }}
+      >
         <img className="bili-aux-video-cover" src={v.cover} alt="" loading="lazy" />
         <div className="bili-aux-video-info">
           <div className="bili-aux-video-title" title={v.title}>{v.title || v.bvid}</div>
@@ -158,7 +158,7 @@ function PanelApp() {
           className="bili-aux-panel-toggle"
           title="折叠/展开"
           onClick={() => setIsCollapsed(!isCollapsed)}
-        >{isCollapsed ? '+' : '−'}</button>
+        ><Icon name={isCollapsed ? 'expand' : 'collapse'} size={14} /></button>
       </div>
 
       <div className="bili-aux-panel-body">
@@ -171,12 +171,12 @@ function PanelApp() {
                   className={'bili-aux-view-toggle' + (viewMode === 'list' ? ' active' : '')}
                   title="列表视图"
                   onClick={() => setViewMode('list')}
-                >☰</button>
+                ><Icon name="list" size={14} /></button>
                 <button
                   className={'bili-aux-view-toggle' + (viewMode === 'tab' ? ' active' : '')}
                   title="面板视图"
                   onClick={() => setViewMode('tab')}
-                >▦</button>
+                ><Icon name="grid" size={14} /></button>
               </div>
             </div>
             {videos.length === 0 ? (
@@ -231,12 +231,12 @@ function PanelApp() {
                   className={'bili-aux-view-toggle' + (noteSort === 'desc' ? ' active' : '')}
                   title="最新优先"
                   onClick={() => setNoteSort('desc')}
-                >↓</button>
+                ><Icon name="sortDesc" size={14} /></button>
                 <button
                   className={'bili-aux-view-toggle' + (noteSort === 'asc' ? ' active' : '')}
                   title="最早优先"
                   onClick={() => setNoteSort('asc')}
-                >↑</button>
+                ><Icon name="sortAsc" size={14} /></button>
               </div>
             </div>
             {sortedNoteVideos.length === 0 ? (

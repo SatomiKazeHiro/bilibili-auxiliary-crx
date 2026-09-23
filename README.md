@@ -2,6 +2,19 @@
 
 一个用于增强 Bilibili 网页体验的 Chrome 扩展。
 
+<table>
+  <tr>
+    <td align="center"><b>历史记录</b></td>
+    <td align="center"><b>备注面板</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/历史记录.png" alt="历史记录" /></td>
+    <td><img src="docs/screenshots/备注面板.png" alt="备注面板" /></td>
+  </tr>
+</table>
+
+
+
 ## 功能
 
 ### 历史记录页
@@ -93,4 +106,5 @@ npm run lint
 - 本扩展仅注入 Content Script，不运行后台 Service Worker
 - IndexedDB 用于本地缓存，清理浏览器数据会导致缓存丢失
 - 重要数据请通过控制台命令 `BiliAuxUploadLocal()` 上传到 Supabase
+
 # bilibili-auxiliary-crx

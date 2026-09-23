@@ -83,7 +83,8 @@ export function renderNoteIcon(card, bvid, onClick) {
   const target = cover || wrap;
 
   const panelIcon = el('span', { class: 'note-panel-icon' });
-  panelIcon.innerHTML = iconHTML('bulb', 12);
+  // panelIcon.innerHTML = iconHTML('bulb', 12);
+  panelIcon.innerHTML = '💡';
   const panelText = el('span', { class: 'note-panel-text' });
   const panel = el('div', { class: 'note-panel' }, panelIcon, panelText);
   const badge = el('div', { class: 'note-badge', title: '点击添加备注' });
